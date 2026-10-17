@@ -14,7 +14,6 @@ export type GameMode = "daily" | "unlimited";
 export interface Product {
   id: string;
   name: string;
-  image: string;
   actualPrice: number;
   category: Category;
 }

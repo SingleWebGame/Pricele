@@ -1,6 +1,6 @@
 import type { Category, Product } from "@/types/game";
 
-const catalog: Record<Category, { names: string[]; image: string; low: number; high: number }> = {
+const catalog: Record<Category, { names: string[]; low: number; high: number }> = {
   Cars: {
     names: [
       "Tesla Model 3", "Tesla Model Y", "Tesla Model S", "Porsche 911 Carrera",
@@ -24,7 +24,6 @@ const catalog: Record<Category, { names: string[]; image: string; low: number; h
       "BMW 7 Series", "Mercedes-Benz EQS", "Audi A8", "Cadillac CT5-V Blackwing",
       "Toyota GR Corolla", "Honda Accord Hybrid", "Hyundai Palisade", "Kia EV9",
     ],
-    image: "photo-1492144534655-ae79c964c9d7",
     low: 24_000,
     high: 320_000,
   },
@@ -54,7 +53,6 @@ const catalog: Record<Category, { names: string[]; image: string; low: number; h
       "Redmi Note 13 Pro", "Poco X6 Pro", "Sony Xperia 1 V", "Nothing Phone (1)",
       "Motorola Razr 2023", "Samsung Galaxy S22 Ultra",
     ],
-    image: "photo-1511707171634-5f897ff02aa9",
     low: 199,
     high: 1_999,
   },
@@ -88,7 +86,6 @@ const catalog: Record<Category, { names: string[]; image: string; low: number; h
       "Louis Vuitton Keepall", "Gucci Horsebit 1955", "Prada Re-Nylon Backpack",
       "Cartier Juste un Clou Bracelet", "Tiffany T Wire Bracelet", "Buccellati Opera Tulle Ring",
     ],
-    image: "photo-1523170335258-f5ed11844a49",
     low: 799,
     high: 120_000,
   },
@@ -125,7 +122,6 @@ const catalog: Record<Category, { names: string[]; image: string; low: number; h
       "Elgato Wave:3", "Shure MV7+", "HyperX QuadCast 2",
       "Blue Yeti X", "Rode NT-USB+", "Focusrite Scarlett 2i2",
     ],
-    image: "photo-1593305841991-05c297ba4575",
     low: 49,
     high: 8_999,
   },
@@ -160,7 +156,6 @@ const catalog: Record<Category, { names: string[]; image: string; low: number; h
       "Breville Oracle Touch", "Ninja Creami Deluxe", "Thermomix TM6",
       "Lutron Caséta Smart Lighting Kit", "Ubiquiti Dream Machine Pro",
     ],
-    image: "photo-1498049794561-7780e7231661",
     low: 99,
     high: 24_999,
   },
@@ -204,7 +199,6 @@ const catalog: Record<Category, { names: string[]; image: string; low: number; h
       "Polène Numéro Un Bag", "Longchamp Le Pliage Tote",
       "Mansur Gavriel Mini Cloud Clutch", "Strathberry East/West Bag",
     ],
-    image: "photo-1529139574466-a303027c1d8b",
     low: 35,
     high: 12_000,
   },
@@ -242,18 +236,10 @@ const catalog: Record<Category, { names: string[]; image: string; low: number; h
       "Garmin Fenix 8 Sapphire", "TAG Heuer Connected Calibre E4",
       "Montblanc 1858 Geosphere", "Bremont Supermarine S302",
     ],
-    image: "photo-1523275335684-37898b6baf30",
     low: 99,
     high: 220_000,
   },
 };
-
-const categoryImages = Object.fromEntries(
-  Object.entries(catalog).map(([category, entry]) => [
-    category,
-    `https://images.unsplash.com/${entry.image}?auto=format&fit=crop&w=1200&q=85`,
-  ]),
-) as Record<Category, string>;
 
 function plausiblePrice(index: number, category: Category): number {
   const { low, high } = catalog[category];
@@ -267,7 +253,6 @@ export const products: Product[] = Object.entries(catalog).flatMap(([categoryNam
   return entry.names.slice(0, categoryIndex < 3 ? 72 : 71).map((name, index) => ({
     id: `${category.toLowerCase()}-${String(index + 1).padStart(3, "0")}`,
     name,
-    image: categoryImages[category],
     actualPrice: plausiblePrice(index, category),
     category,
   }));

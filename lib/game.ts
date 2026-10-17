@@ -4,6 +4,15 @@ import { getUtcDateKey, hashString, seededRandom } from "@/lib/utils";
 
 export const ROUNDS_PER_GAME = 5;
 
+export function getPriceHint(price: number): string {
+  if (price < 100) return "It costs less than a nice night out.";
+  if (price < 500) return "It'll cost you a pretty penny.";
+  if (price < 2_000) return "It costs an arm and a leg.";
+  if (price < 10_000) return "It costs a small fortune.";
+  if (price < 50_000) return "It'll cost you an arm, a leg, and then some.";
+  return "You might need a small loan for this one.";
+}
+
 export function getDailyNumber(date = new Date()): number {
   const start = Date.UTC(2025, 0, 1);
   const current = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());

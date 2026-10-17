@@ -25,7 +25,8 @@ import {
   Zap,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { calculateScore, getChallengeProducts, getDailyNumber, getUnlimitedProducts, ROUNDS_PER_GAME } from "@/lib/game";
+import { calculateScore, getChallengeProducts, getDailyNumber, getPriceHint, getUnlimitedProducts, ROUNDS_PER_GAME } from "@/lib/game";
+import type { ProductImageResult } from "@/lib/product-image";
 import { canvasToBlob, copyShareCard, createShareCard } from "@/lib/share-card";
 import {
   EMPTY_STATS,
@@ -48,6 +49,71 @@ function getGuessColor(score: number): string {
   if (score >= 800) return "text-emerald-300";
   if (score >= 400) return "text-amber-300";
   return "text-rose-300";
+}
+
+const productImageCache = new Map<string, ProductImageResult | null>();
+
+function ProductPhoto({ product }: { product: Product }) {
+  const [photo, setPhoto] = useState<ProductImageResult | null>(() => productImageCache.get(product.id) ?? null);
+  const [searchComplete, setSearchComplete] = useState(() => productImageCache.has(product.id));
+
+  useEffect(() => {
+    if (productImageCache.has(product.id)) return;
+    const controller = new AbortController();
+
+    async function findPhoto() {
+      try {
+        const params = new URLSearchParams({ name: product.name, version: "2" });
+        const response = await fetch(`/api/product-image?${params}`, { signal: controller.signal });
+        if (!response.ok) throw new Error(`Product image search returned ${response.status}.`);
+        const result = await response.json() as { image?: ProductImageResult | null };
+        if (result.image !== null && (!result.image || typeof result.image.url !== "string")) {
+          throw new Error("Product image search returned an invalid result.");
+        }
+        productImageCache.set(product.id, result.image);
+        setPhoto(result.image);
+        setSearchComplete(true);
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") return;
+        console.error(`Could not find a matching photo for ${product.name}.`, error);
+        setSearchComplete(true);
+      }
+    }
+
+    void findPhoto();
+    return () => controller.abort();
+  }, [product.id, product.name]);
+
+  if (photo) {
+    return (
+      <>
+        <Image src={photo.url} alt={product.name} fill fetchPriority="high" sizes="(max-width: 640px) 100vw, 800px" className="object-cover opacity-85" />
+        {photo.descriptionUrl && (
+          <a
+            href={photo.descriptionUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="absolute right-3 top-3 max-w-[65%] truncate rounded-md border border-white/10 bg-black/45 px-2 py-1 text-[10px] text-white/75 backdrop-blur-md hover:text-white"
+            title={`Photo by ${photo.attribution || "Wikimedia Commons"}${photo.license ? `, ${photo.license}` : ""}`}
+          >
+            {photo.attribution || "Wikimedia Commons"}{photo.license && ` · ${photo.license}`}
+          </a>
+        )}
+      </>
+    );
+  }
+
+  return (
+    <div
+      role="img"
+      aria-label={searchComplete ? `No matching photo found for ${product.name}` : `Finding a photo of ${product.name}`}
+      className="absolute inset-0 grid place-items-center bg-gradient-to-br from-[#17252a] via-[#10171f] to-[#1c1728]"
+    >
+      <span className="rounded-full border border-white/10 bg-black/30 px-4 py-2 text-xs font-medium text-white/70">
+        {searchComplete ? "Product photo unavailable" : "Finding product photo…"}
+      </span>
+    </div>
+  );
 }
 
 function playTone(success: boolean): void {
@@ -322,7 +388,7 @@ export function PriceleApp() {
       });
       setProductsInGame(restored);
       setResults(restoredResults);
-      setRound(Math.min(restoredResults.length, ROUNDS_PER_GAME - 1));
+      setRound(Math.min(Math.max(restoredResults.length - 1, 0), ROUNDS_PER_GAME - 1));
       setRevealed(restoredResults.length > 0);
       if (restoredResults.length >= ROUNDS_PER_GAME) {
         setCompleted(true);
@@ -363,7 +429,7 @@ export function PriceleApp() {
       const progress = loadDailyProgress();
       if (progress && progress.guesses.length > 0) {
         setProductsInGame(progress.products.map((id) => dailyProducts.find((product) => product.id === id)).filter((product): product is Product => Boolean(product)));
-        setRound(Math.min(progress.guesses.length, ROUNDS_PER_GAME - 1));
+        setRound(Math.min(progress.guesses.length - 1, ROUNDS_PER_GAME - 1));
         const restoredResults = progress.guesses.map((guess, index) => {
           const product = dailyProducts.find((product) => product.id === progress.products[index]);
           if (!product) return null;
@@ -512,7 +578,7 @@ export function PriceleApp() {
                 <AnimatePresence mode="wait">
                   <motion.div key={currentProduct.id} initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={{ duration: 0.22 }}>
                     <div className="relative mx-4 h-56 overflow-hidden rounded-xl bg-[#0c1117] sm:mx-7 sm:h-[310px]">
-                      <Image src={currentProduct.image} alt={currentProduct.name} fill priority sizes="(max-width: 640px) 100vw, 800px" className="object-cover opacity-85" />
+                      <ProductPhoto key={currentProduct.id} product={currentProduct} />
                       <div className="absolute inset-0 bg-gradient-to-t from-[#070b10] via-[#070b10]/10 to-transparent" />
                       <div className="absolute left-4 top-4 rounded-lg border border-white/10 bg-black/35 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.13em] text-white/80 backdrop-blur-md">{currentProduct.category}</div>
                       <div className="absolute bottom-5 left-5 right-5 sm:bottom-6 sm:left-7">
@@ -524,6 +590,10 @@ export function PriceleApp() {
                     <div className="px-5 pb-6 pt-5 sm:px-7 sm:pb-7">
                       {!revealed ? (
                         <>
+                          <p className="mb-3 flex items-center gap-2 rounded-xl border border-violet-300/10 bg-violet-300/[0.045] px-4 py-3 text-xs text-slate-300">
+                            <Sparkles size={14} className="shrink-0 text-violet-200" />
+                            <span><span className="mr-1 font-semibold text-violet-200">Price hint:</span>{getPriceHint(currentProduct.actualPrice)}</span>
+                          </p>
                           <form className="flex flex-col gap-3 sm:flex-row" onSubmit={(event) => { event.preventDefault(); submitGuess(); }}>
                             <div className="relative flex-1">
                               <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-lg text-slate-500">$</span>
